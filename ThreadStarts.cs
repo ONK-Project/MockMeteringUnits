@@ -1,12 +1,19 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Text;
 using System.Threading;
+using Models;
+using System.Linq;
 
 namespace MockMeteringsUnits
 {
     public class ThreadStarts
     {
+        // For HTTP
+        static readonly HttpClient client = new HttpClient();
+
         // For delay/frequency
         const int generalFrequency = 900_000; // 15 minutes 
         const int waterFrequency = generalFrequency;
@@ -18,15 +25,30 @@ namespace MockMeteringsUnits
         const double minimum = 0.0;
         const double maximum = 100.0;
 
-        List<long> heatMeteringUnitIds;
-        List<long> waterMeteringUnitIds;
-        List<long> electricityMeteringUnitIds;
+        List<MeteringUnit> heatMeteringUnits;
+        List<MeteringUnit> waterMeteringUnits;
+        List<MeteringUnit> electricityMeteringUnits;
 
         public ThreadStarts()
         {
-            //TODO: Retrieve all sensors
+            // Retrieve all sensors 
+            var response = client.GetStringAsync("http://35.187.106.129:8080/api/v1/MeteringUnit").Result;
+            var meteringUnits = JsonConvert.DeserializeObject<List<MeteringUnit>>(response);
 
-            //TODO: Fill the 3 lists dependent of the type of sensor retrieved
+
+           // Fill the 3 lists dependent of the type of sensor retrieved
+            heatMeteringUnits = meteringUnits
+                .Where(m => m.Type == "Heat")
+                .ToList();
+
+            waterMeteringUnits = meteringUnits
+                .Where(m => m.Type == "Water")
+                .ToList();
+
+            electricityMeteringUnits = meteringUnits
+                .Where(m => m.Type == "Electricity")
+                .ToList();
+
 
             // Start 3 threads
             var heatThread = new Thread(new ThreadStart(HeatSubmission));
@@ -41,16 +63,16 @@ namespace MockMeteringsUnits
 
         public void HeatSubmission()
         {
-            foreach (var heatId in heatMeteringUnitIds)
+            foreach (var heat in heatMeteringUnits)
             {
-                var submission = new Models.Submission()
+                var submission = new Submission()
                 {
-                    MeteringUnit = new Models.MeteringUnit()
+                    MeteringUnit = new MeteringUnit()
                     {
-                        id = heatId,
-                        model = "AAA-BBB-CCC",
-                        type = "Heat",
-                        location = $"8000, Aarhus C, Fiskergade {(heatId % 5).ToString()};"
+                        MeteringUnitId = heat.MeteringUnitId,
+                        Model = heat.Model,
+                        Type = heat.Type,
+                        Location = heat.Location
                     },
                     DateTime = DateTime.UtcNow,
                     RessourceUsage = (random.NextDouble() * (maximum - minimum) + minimum),
@@ -65,16 +87,16 @@ namespace MockMeteringsUnits
 
         public void WaterSubmission()
         {
-            foreach (var waterId in waterMeteringUnitIds)
+            foreach (var water in waterMeteringUnits)
             {
-                var submission = new Models.Submission()
+                var submission = new Submission()
                 {
-                    MeteringUnit = new Models.MeteringUnit()
+                    MeteringUnit = new MeteringUnit()
                     {
-                        id = waterId,
-                        model = "CCC-BBB-AAA",
-                        type = "Water",
-                        location = $"8000, Aarhus C, Fiskergade {(waterId % 5).ToString()};"
+                        MeteringUnitId = water.MeteringUnitId,
+                        Model = water.Model,
+                        Type = water.Type,
+                        Location = water.Location
                     },
                     DateTime = DateTime.UtcNow,
                     RessourceUsage = (random.NextDouble() * (maximum - minimum) + minimum),
@@ -89,16 +111,16 @@ namespace MockMeteringsUnits
 
         public void ElectricitySubmission()
         {
-            foreach (var electricityID in electricityMeteringUnitIds)
+            foreach (var electricity in electricityMeteringUnits)
             {
-                var submission = new Models.Submission()
+                var submission = new Submission()
                 {
-                    MeteringUnit = new Models.MeteringUnit()
+                    MeteringUnit = new MeteringUnit()
                     {
-                        id = electricityID,
-                        model = "BBB-AAA-CCC",
-                        type = "Electricity",
-                        location = $"8000, Aarhus C, Fiskergade {(electricityID % 5).ToString()};"
+                        MeteringUnitId = electricity.MeteringUnitId,
+                        Model = electricity.Model,
+                        Type = electricity.Type,
+                        Location = electricity.Location
                     },
                     DateTime = DateTime.UtcNow,
                     RessourceUsage = (random.NextDouble() * (maximum - minimum) + minimum),
